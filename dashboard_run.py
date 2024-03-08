@@ -11,7 +11,7 @@ def is_time_window():
     """
     now = datetime.datetime.now(brazil_tz)
     start_time = datetime.time(hour=4)
-    end_time = datetime.time(hour=15)
+    end_time = datetime.time(hour=20)
     return start_time <= now.time() < end_time
 
 if is_time_window():
