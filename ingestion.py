@@ -9,10 +9,14 @@ import boto3
 
 load_dotenv()
 
+class ApiLimitReached(Exception):
+    pass
+
 class Ingestion:
 
     def __init__(self) -> None:
-        self.API_KEY = os.getenv('api_key')
+
+        self.API_KEY = os.getenv('api_key1')
         self.AWS_ACCESS_KEY_ID = os.getenv('aws_access_key_id')
         self.AWS_SECRET_ACCESS_KEY = os.getenv('aws_secret_access_key')
 
@@ -95,6 +99,8 @@ class Ingestion:
             end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
 
         else:
+            date = datetime.strptime(date, '%Y-%m-%d')    
+
             start = date.replace(hour=0, minute=0, second=0, microsecond=0)
             end = date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
@@ -116,8 +122,8 @@ class Ingestion:
                 'Authorization': self.API_KEY
             }
             )
-            print(place, response.status_code)
-
+            if response.status_code == 402:
+                raise ApiLimitReached
             # Do something with response data.
             json_data = response.json()
             data = json_data['hours']
@@ -135,6 +141,7 @@ class Ingestion:
 
         #     # Faz o upload do DataFrame para o S3
         self.upload_dataframe_to_s3(df, bucket_name, object_name)
+        return 200
 
 
    
