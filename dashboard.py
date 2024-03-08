@@ -53,11 +53,9 @@ def load_data_from_s3_boto3(bucket_name, file_key):
 
 # Sidebar for date selection and category selection
 st.sidebar.title("Filters")
-
 # Single date picker
 selected_date = st.sidebar.date_input("Select Date", date.today())
 
-wind_direction = st.checkbox('Wind Direction')
 
 # Sample data (replace with your data source)
 data = {
@@ -66,50 +64,57 @@ data = {
     "category": ["A", "A", "B", "B", "A"]
 }
 df = pd.DataFrame(data)
-df = load_data_from_s3_boto3('surfline', f'{selected_date}.csv')
 
-df['time'] = pd.to_datetime(df['time'])
+try:
+    wind_direction = st.sidebar.checkbox('Wind Direction')
 
-
-# Combobox for category selection
-categories = df['place'].unique().tolist()
-print(categories)
-selected_category = st.sidebar.selectbox("Select Place", categories)
-filtered_df = df[df['place'] == selected_category]
-
-fig = px.bar(
-    filtered_df if 'filtered_df' in locals() else df,  # Use filtered_df if available
-    x="time",
-    y="wind_speed",
-    title="Wind Speed (km/h)"
-)
-
-# Add markers with wind direction text
-#fig.update_traces(marker=dict(size=10, symbol="triangle-up"))  # Adjust marker size and symbol
-
-if wind_direction:
-# Create annotations for each data point (assuming 'wind_direction' is present)
-    for i, row in filtered_df.iterrows():  # Iterate through filtered data (or df if not filtered)
-        x = row['time']
-        y = row['wind_speed']
-        wind_direction = row['wind_direction']
-        annotation_text = f"{wind_direction}"
-
-        # Position annotations slightly above the line
-        y_offset = y * 0.1  # Adjust offset based on your needs
-
-        annotation = dict(
-            x=x,
-            y=y + y_offset,
-            text=annotation_text,
-            showarrow=False
-        )
-        fig.add_annotation(annotation)
-
-st.plotly_chart(fig)
+    df = load_data_from_s3_boto3('surfline', f'{selected_date}.csv')
+    df['time'] = pd.to_datetime(df['time'])
 
 
+    # Combobox for category selection
+    places = df['place'].unique().tolist()
+    place = st.sidebar.selectbox("Select Place", places)
+    filtered_df = df[df['place'] == place]
 
-# Title and chart
-fig = px.line(filtered_df, x="time", y="swell_height", title="Swell Height (m)")
-st.plotly_chart(fig)
+    st.title(f'{place}')
+
+    fig = px.bar(
+        filtered_df if 'filtered_df' in locals() else df,  # Use filtered_df if available
+        x="time",
+        y="wind_speed",
+        title="Wind Speed (km/h)"
+    )
+
+    # Add markers with wind direction text
+    #fig.update_traces(marker=dict(size=10, symbol="triangle-up"))  # Adjust marker size and symbol
+
+    if wind_direction:
+    # Create annotations for each data point (assuming 'wind_direction' is present)
+        for i, row in filtered_df.iterrows():  # Iterate through filtered data (or df if not filtered)
+            x = row['time']
+            y = row['wind_speed']
+            wind_direction = row['wind_direction']
+            annotation_text = f"{wind_direction}"
+
+            # Position annotations slightly above the line
+            y_offset = y * 0.1  # Adjust offset based on your needs
+
+            annotation = dict(
+                x=x,
+                y=y + y_offset,
+                text=annotation_text,
+                showarrow=False
+            )
+            fig.add_annotation(annotation)
+
+    st.plotly_chart(fig)
+
+
+
+    # Title and chart
+    fig = px.line(filtered_df, x="time", y="swell_height", title="Swell Height (m)")
+    st.plotly_chart(fig)
+
+except Exception as e:
+    st.title('Data not Available. Please select another date')
