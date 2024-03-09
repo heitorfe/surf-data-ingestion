@@ -9,7 +9,6 @@ dates = [today, tomorrow]
 ingestion = Ingestion()
 
 for date in dates:
-
     try:
         ingestion.pipeline(date)
 

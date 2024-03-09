@@ -125,14 +125,19 @@ class Ingestion:
             if response.status_code == 402:
                 raise ApiLimitReached
             # Do something with response data.
-            json_data = response.json()
-            data = json_data['hours']
 
-            request_df = pd.DataFrame(data)
+            elif response.status_code != 200:
+                print(response.json())
 
-            request_df = self.transform_data(request_df, place)
+            else:
+                json_data = response.json()
+                data = json_data['hours']
 
-            df = pd.concat([df, request_df])
+                request_df = pd.DataFrame(data)
+
+                request_df = self.transform_data(request_df, place)
+
+                df = pd.concat([df, request_df])
 
 
         bucket_name = 'surfline'
