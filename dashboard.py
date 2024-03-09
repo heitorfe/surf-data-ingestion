@@ -1,10 +1,12 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime, timedelta
 import plotly.express as px
+from pytz import timezone
 import boto3
 import os
 import io
+import math
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,10 +21,16 @@ places = {'Canto das Pedras - Açu' : (  -21.84931242362662 , -40.99504625870848
         'Praia de Geribá - Búzios': (-22.778805307418207 , -41.910794828528886),
         'Praia de Joaquina - Florianópolis': (-22.935712293847164, -42.48337101071781)
         }
+
 s3_client = boto3.client('s3', 
                     aws_access_key_id=AWS_ACCESS_KEY_ID, 
                     aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 
+
+def get_current_time() -> str:
+    tz = timezone('Etc/GMT+3')  # E. South America Standard Time
+    current_time = datetime.now(tz)
+    return current_time
 
 @st.cache_data
 def load_data_from_s3_boto3(bucket_name, file_key):
@@ -69,15 +77,44 @@ try:
     wind_direction = st.sidebar.checkbox('Wind Direction')
 
     df = load_data_from_s3_boto3('surfline', f'{selected_date}.csv')
-    df['time'] = pd.to_datetime(df['time'])
+    df['time'] = pd.to_datetime(df['time']).dt.tz_convert(None)
+
+    #brazil time
+    df['time'] = df['time'].apply(lambda x: x - timedelta(hours=3))
+                                
 
 
     # Combobox for category selection
     places = df['place'].unique().tolist()
     place = st.sidebar.selectbox("Select Place", places)
     filtered_df = df[df['place'] == place]
-
     st.title(f'{place}')
+
+    col1, col2, col3 = st.columns(3)
+    now = datetime.now()
+
+    if selected_date == now.date():
+        growth_style = "font-size: larger; font-weight: bold;"
+        
+        current_time = now.replace(minute=0, second=0, microsecond=0)
+        current_time_df = filtered_df[filtered_df['time']==current_time]
+        current_time_wind_speed = round(current_time_df['wind_speed'].squeeze(), 1)
+        current_time_swell_height = round(current_time_df['swell_height'].squeeze(),2)
+
+        next_3_hours_df = filtered_df[(filtered_df['time']>=current_time) &\
+                            (filtered_df['time']<=current_time + timedelta(hours=3))]
+        next_3_hours_df_swell_height_avg = round(next_3_hours_df['swell_height'].mean(), 2)
+
+        with col1:
+            st.write("Velocidade do vento agora:")
+            st.write(f"<span style='{growth_style} color: white;'>{current_time_wind_speed} km/h</span>", unsafe_allow_html=True)
+        with col2:
+            st.write("Altura da onda agora:")
+            st.write(f"<span style='{growth_style} color: white;'>{current_time_swell_height} m</span>", unsafe_allow_html=True)
+        with col3:
+            st.write("Altura da onda nas próximas 3h:")
+            st.write(f"<span style='{growth_style} color: white;'>{next_3_hours_df_swell_height_avg} m</span>", unsafe_allow_html=True)
+
 
     fig = px.bar(
         filtered_df if 'filtered_df' in locals() else df,  # Use filtered_df if available
@@ -86,8 +123,6 @@ try:
         title="Wind Speed (km/h)"
     )
 
-    # Add markers with wind direction text
-    #fig.update_traces(marker=dict(size=10, symbol="triangle-up"))  # Adjust marker size and symbol
 
     if wind_direction:
     # Create annotations for each data point (assuming 'wind_direction' is present)
@@ -110,11 +145,9 @@ try:
 
     st.plotly_chart(fig)
 
-
-
     # Title and chart
     fig = px.line(filtered_df, x="time", y="swell_height", title="Swell Height (m)")
     st.plotly_chart(fig)
 
 except Exception as e:
-    st.title('Data not Available. Please select another date')
+    st.title(f'Data not Available. Please select another date')
