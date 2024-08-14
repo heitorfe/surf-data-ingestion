@@ -1,2 +1,2 @@
 # surf-data-ingestion
- Data pipeline to make free ingestion of wather data for surf
+ Data pipeline to make free ingestion of weather data for surf
